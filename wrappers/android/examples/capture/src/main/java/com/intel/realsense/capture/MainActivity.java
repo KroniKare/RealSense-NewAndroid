@@ -12,13 +12,14 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 
+import com.intel.realsense.librealsense.Alignment;
 import com.intel.realsense.librealsense.Config;
 import com.intel.realsense.librealsense.Decimation;
 import com.intel.realsense.librealsense.DeviceListener;
+import com.intel.realsense.librealsense.DeviceManager;
 import com.intel.realsense.librealsense.Frame;
 import com.intel.realsense.librealsense.FrameSet;
 import com.intel.realsense.librealsense.Pipeline;
-import com.intel.realsense.librealsense.DeviceManager;
 import com.intel.realsense.librealsense.StreamFormat;
 import com.intel.realsense.librealsense.StreamType;
 import com.intel.realsense.librealsense.VideoFrame;
@@ -40,6 +41,10 @@ public class MainActivity extends AppCompatActivity {
     private Pipeline mPipeline;
 
     private Decimation mDecimation = new Decimation();
+    private Alignment mAlignment = new Alignment();
+    private BackgroundRemover mBackgroundRemover = new BackgroundRemover();
+
+    private ImageView mImageView;
 
     private DeviceListener mListener = new DeviceListener() {
         @Override
@@ -123,8 +128,10 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        mConfig.enableStream(StreamType.DEPTH, 640, 480);
-        mConfig.enableStream(StreamType.COLOR, 640, 480, StreamFormat.RGBA8);
+        mConfig.enableStream(StreamType.DEPTH,-1, 640, 480, StreamFormat.Z16,6);
+        mConfig.enableStream(StreamType.COLOR,-1, 640, 480, StreamFormat.RGBA8,6);
+
+        mImageView= (ImageView) findViewById(R.id.colorImageView);
     }
 
     Runnable updateBitmap = new Runnable() {
@@ -135,9 +142,11 @@ public class MainActivity extends AppCompatActivity {
                 {
                     try(FrameSet processed = frames.applyFilter(mDecimation)) {
                         try(Frame f = processed.first(StreamType.COLOR)) {
-                            mColorFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
+                          mBackgroundRemover.removeBackground(MainActivity.this, f,5000, mImageView);
+//                            mColorFrameViewer.show(MainActivity.this, mF.as(VideoFrame.class));
                         }
                         try(Frame f = processed.first(StreamType.DEPTH)) {
+                            mBackgroundRemover.setDepthFrame(f);
                             mDepthFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
                         }
                     }
@@ -190,4 +199,6 @@ public class MainActivity extends AppCompatActivity {
         if(mPipeline != null)
             mPipeline.stop();
     }
+
+
 }

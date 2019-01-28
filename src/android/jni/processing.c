@@ -30,6 +30,20 @@ Java_com_intel_realsense_librealsense_Decimation_nCreate(JNIEnv *env, jclass typ
     return (jlong) rv;
 }
 
+JNIEXPORT jlong JNICALL
+Java_com_intel_realsense_librealsense_Alignment_nCreate(JNIEnv *env, jclass type,
+                                                        jlong queueHandle,jlong alignTo) {
+    //TODO: Cast alignTo input to rs2_stream
+    rs2_error *e = NULL;
+    rs2_processing_block *rv = rs2_create_align(RS2_STREAM_COLOR,&e);
+    handle_error(env, e);
+    rs2_start_processing_queue(rv, queueHandle, &e);
+    handle_error(env, e);
+    return (jlong) rv;
+}
+
+
+
 JNIEXPORT void JNICALL
 Java_com_intel_realsense_librealsense_ProcessingBlock_nInvoke(JNIEnv *env, jclass type,
                                                               jlong handle, jlong frameHandle) {
