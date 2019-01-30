@@ -1,9 +1,15 @@
 package com.intel.realsense.librealsense;
 
 
+import android.util.Log;
+
 public class Pipeline extends LrsClass{
+    long mPipelineProfileHandle;
     public Pipeline(){
         RsContext ctx = new RsContext();
+        mHandle = nCreate(ctx.getHandle());
+    }
+    public Pipeline(RsContext ctx){
         mHandle = nCreate(ctx.getHandle());
     }
 
@@ -12,7 +18,7 @@ public class Pipeline extends LrsClass{
     }
 
     public void start(Config config){
-        nStartWithConfig(mHandle, config.getHandle());
+        mPipelineProfileHandle=nStartWithConfig(mHandle, config.getHandle());
     }
     public void stop(){
         nStop(mHandle);
@@ -36,7 +42,11 @@ public class Pipeline extends LrsClass{
     private static native long nCreate(long context);
     private static native void nDelete(long handle);
     private static native void nStart(long handle);
-    private static native void nStartWithConfig(long handle, long configHandle);
+    private static native long nStartWithConfig(long handle, long configHandle);
     private static native void nStop(long handle);
     private static native long nWaitForFrames(long handle, int timeout);
+
+    public long getmPipelineProfileHandle() {
+        return mPipelineProfileHandle;
+    }
 }

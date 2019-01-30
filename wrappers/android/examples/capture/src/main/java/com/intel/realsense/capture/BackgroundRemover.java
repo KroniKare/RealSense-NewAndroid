@@ -20,6 +20,7 @@ class BackgroundRemover {
 
     private ByteBuffer mBufferDepth;
     private ByteBuffer mBufferColor;
+    private static final String TAG = "BackGroundRemover";
 
 
     public BackgroundRemover(){
@@ -47,26 +48,32 @@ class BackgroundRemover {
 
 
 
-            mBitmapDepth = Bitmap.createBitmap(colorFrame.as(VideoFrame.class).getWidth(),
-                    colorFrame.as(VideoFrame.class).getHeight(), Bitmap.Config.RGB_565);
+            mBitmapDepth = Bitmap.createBitmap(depthFrame.as(VideoFrame.class).getWidth(),
+                    depthFrame.as(VideoFrame.class).getHeight(), Bitmap.Config.RGB_565);
             mBufferDepth = ByteBuffer.allocateDirect(mBitmapDepth.getByteCount());
 
-            colorFrame.getData(mBufferDepth.array());
-            mBufferColor.rewind();
+            depthFrame.getData(mBufferDepth.array());
+            mBufferDepth.rewind();
             mBitmapDepth.copyPixelsFromBuffer(mBufferDepth);
 
             mBitmapRemoved=Bitmap.createBitmap(mBitmapColor);
 
+            //TODO: Write renderscript to do faster
             for (int x=0;x<mBitmapDepth.getWidth();x++){
                 for (int y=0;y<mBitmapDepth.getHeight();y++){
                     int zValue= mBitmapDepth.getPixel(x,y);
-                    long trueValue= Integer.toUnsignedLong(zValue);
-                    if (x % 50 ==0 && y % 50 ==0) {
-                        Log.i("Main", "removeBackground: " + trueValue);
-                    }
-//                    if (trueValue){
-//                        mBitmapRemoved.setPixel(x,y,setSRGB(255,153,153,153));
+                    int trueValue=0,trueValueDiv=0;
+                    trueValue = (zValue & 0xffff);
+                    trueValueDiv = trueValue / 100;
+
+//                    if (x % 50 == 0 && y % 50 == 0) {
+//                        Log.d(TAG, "removeBackground: zValue: " + zValue);
+//                        Log.d(TAG, "removeBackground: true Value: " + trueValue);
+//                        Log.d(TAG, "removeBackground: trueValue/1000: " + trueValueDiv);
 //                    }
+                    if (trueValueDiv > (int) depthThreshold || trueValueDiv <= 0){
+                        mBitmapRemoved.setPixel(x,y,setSRGB(255,153,153,153));
+                    }
                 }
             }
 

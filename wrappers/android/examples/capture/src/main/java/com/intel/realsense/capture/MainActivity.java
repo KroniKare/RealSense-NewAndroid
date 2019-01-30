@@ -12,17 +12,21 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 
+import com.intel.realsense.librealsense.AdvancedMode;
 import com.intel.realsense.librealsense.Alignment;
 import com.intel.realsense.librealsense.Config;
 import com.intel.realsense.librealsense.Decimation;
+import com.intel.realsense.librealsense.Device;
 import com.intel.realsense.librealsense.DeviceListener;
 import com.intel.realsense.librealsense.DeviceManager;
 import com.intel.realsense.librealsense.Frame;
 import com.intel.realsense.librealsense.FrameSet;
 import com.intel.realsense.librealsense.Pipeline;
+import com.intel.realsense.librealsense.RsContext;
 import com.intel.realsense.librealsense.StreamFormat;
 import com.intel.realsense.librealsense.StreamType;
 import com.intel.realsense.librealsense.VideoFrame;
+import com.intel.realsense.librealsense.VideoStreamProfile;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "lrs capture example";
@@ -39,23 +43,42 @@ public class MainActivity extends AppCompatActivity {
 
     private Config mConfig = new Config();
     private Pipeline mPipeline;
+    private Device mDevice;
+    private AdvancedMode mAdvancedMode;
+    private AdvancedMode.DepthTableControl mDepthTableControl;
 
     private Decimation mDecimation = new Decimation();
     private Alignment mAlignment = new Alignment();
     private BackgroundRemover mBackgroundRemover = new BackgroundRemover();
+    RSMeasurement rsMeasurement = new RSMeasurement();
 
     private ImageView mImageView;
 
     private DeviceListener mListener = new DeviceListener() {
         @Override
         public void onDeviceAttach() {
-            mPipeline = new Pipeline();
+            RsContext rsContext = new RsContext();
+
+            mDevice= new Device(rsContext);
+            mAdvancedMode = new AdvancedMode(mDevice);
+//            mDepthTableControl = new AdvancedMode.DepthTableControl();
+            mDepthTableControl=mAdvancedMode.getmDepthTableControl();
+            mDepthTableControl.disparityShift = 60;
+            mDepthTableControl.depthUnits = 1000;
+//            mDepthTableControl.disparityMode = 0;
+//            mDepthTableControl.depthClampMax = 65536;
+//            mDepthTableControl.depthClampMin = 0;
+            mAdvancedMode.setmDepthTableControl(mDepthTableControl);
+
+            mPipeline = new Pipeline(rsContext);
+            mPipeline.getmPipelineProfileHandle();
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
                     mStartStopButton.setVisibility(View.VISIBLE);
                 }
             });
+
         }
 
         @Override
@@ -128,8 +151,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        mConfig.enableStream(StreamType.DEPTH,-1, 640, 480, StreamFormat.Z16,6);
-        mConfig.enableStream(StreamType.COLOR,-1, 640, 480, StreamFormat.RGBA8,6);
+        mConfig.enableStream(StreamType.DEPTH,-1, 640, 480, StreamFormat.Z16,30);
+        mConfig.enableStream(StreamType.COLOR,-1, 640, 480, StreamFormat.RGBA8,30);
 
         mImageView= (ImageView) findViewById(R.id.colorImageView);
     }
@@ -140,9 +163,15 @@ public class MainActivity extends AppCompatActivity {
             try {
                 try(FrameSet frames = mPipeline.waitForFrames())
                 {
-                    try(FrameSet processed = frames.applyFilter(mDecimation)) {
+                    try(FrameSet processed = frames.applyFilter(mAlignment)) {
                         try(Frame f = processed.first(StreamType.COLOR)) {
-                          mBackgroundRemover.removeBackground(MainActivity.this, f,5000, mImageView);
+                          mBackgroundRemover.removeBackground(MainActivity.this, f,180, mImageView);
+
+                          if (!rsMeasurement.colorIntrinsicRead) {
+                              VideoStreamProfile videoStreamProfile = ((VideoStreamProfile) f.getProfile());
+                              rsMeasurement.setColorIntrinsicParameters(videoStreamProfile.getmIntrinsicParameters());
+                          }
+
 //                            mColorFrameViewer.show(MainActivity.this, mF.as(VideoFrame.class));
                         }
                         try(Frame f = processed.first(StreamType.DEPTH)) {
