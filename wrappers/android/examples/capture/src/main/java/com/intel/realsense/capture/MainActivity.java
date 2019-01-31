@@ -2,11 +2,14 @@ package com.intel.realsense.capture;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutCompat;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -21,6 +24,7 @@ import com.intel.realsense.librealsense.DeviceListener;
 import com.intel.realsense.librealsense.DeviceManager;
 import com.intel.realsense.librealsense.Frame;
 import com.intel.realsense.librealsense.FrameSet;
+import com.intel.realsense.librealsense.Option;
 import com.intel.realsense.librealsense.Pipeline;
 import com.intel.realsense.librealsense.RsContext;
 import com.intel.realsense.librealsense.StreamFormat;
@@ -28,12 +32,28 @@ import com.intel.realsense.librealsense.StreamType;
 import com.intel.realsense.librealsense.VideoFrame;
 import com.intel.realsense.librealsense.VideoStreamProfile;
 
+import java.nio.ByteBuffer;
+
+import static com.intel.realsense.capture.BackgroundRemover.createBitmapFromFrame;
+
 public class MainActivity extends AppCompatActivity {
+
+    static {
+        System.loadLibrary("native-lib");
+    }
     private static final String TAG = "lrs capture example";
     private static final int MY_PERMISSIONS_REQUEST_CAMERA = 0;
 
     private android.content.Context mContext = this;
     private Button mStartStopButton;
+    private Button mCaptureButton;
+    private LinearLayoutCompat mButtonPanel;
+    Handler mBackgroundHandler;
+    Handler mCaptureHandler;
+    Boolean isCaptureDepth=false;
+    private boolean isCaptureVideo = false;
+
+
 
     private boolean mIsStreaming = false;
     private final Handler mHandler = new Handler();
@@ -63,6 +83,7 @@ public class MainActivity extends AppCompatActivity {
             mAdvancedMode = new AdvancedMode(mDevice);
 //            mDepthTableControl = new AdvancedMode.DepthTableControl();
             mDepthTableControl=mAdvancedMode.getmDepthTableControl();
+            Log.i(TAG, "onDeviceAttach: depthUnits: "+mDepthTableControl.depthUnits);
             mDepthTableControl.disparityShift = 60;
             mDepthTableControl.depthUnits = 1000;
 //            mDepthTableControl.disparityMode = 0;
@@ -70,12 +91,16 @@ public class MainActivity extends AppCompatActivity {
 //            mDepthTableControl.depthClampMin = 0;
             mAdvancedMode.setmDepthTableControl(mDepthTableControl);
 
+            mDepthTableControl=mAdvancedMode.getmDepthTableControl();
+            Log.i(TAG, "onDeviceAttach: depthUnits 2: "+mDepthTableControl.depthUnits);
+
+
             mPipeline = new Pipeline(rsContext);
             mPipeline.getmPipelineProfileHandle();
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    mStartStopButton.setVisibility(View.VISIBLE);
+                    mButtonPanel.setVisibility(View.VISIBLE);
                 }
             });
 
@@ -87,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    mStartStopButton.setVisibility(View.GONE);
+                    mButtonPanel.setVisibility(View.GONE);
                 }
             });
             try {
@@ -99,6 +124,8 @@ public class MainActivity extends AppCompatActivity {
             stop();
         }
     };
+    private Bitmap mBitmapDepth;
+    private ByteBuffer mBufferDepth;
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
@@ -139,6 +166,8 @@ public class MainActivity extends AppCompatActivity {
         mDepthFrameViewer = new FrameViewer((ImageView) findViewById(R.id.depthImageView));
 
         mStartStopButton = findViewById(R.id.btnStart);
+        mButtonPanel = findViewById(R.id.buttonPanel);
+        mCaptureButton = findViewById(R.id.btnCapture);
 
         mStartStopButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -165,7 +194,12 @@ public class MainActivity extends AppCompatActivity {
                 {
                     try(FrameSet processed = frames.applyFilter(mAlignment)) {
                         try(Frame f = processed.first(StreamType.COLOR)) {
-                          mBackgroundRemover.removeBackground(MainActivity.this, f,180, mImageView);
+
+                            mBackgroundRemover.removeBackground(MainActivity.this, f,8, mImageView);
+                            if (isCaptureVideo){
+                                mBackgroundRemover.saveBitmap(getApplicationContext(),"color_image.jpg");
+                                isCaptureVideo = false;
+                            }
 
                           if (!rsMeasurement.colorIntrinsicRead) {
                               VideoStreamProfile videoStreamProfile = ((VideoStreamProfile) f.getProfile());
@@ -175,6 +209,27 @@ public class MainActivity extends AppCompatActivity {
 //                            mColorFrameViewer.show(MainActivity.this, mF.as(VideoFrame.class));
                         }
                         try(Frame f = processed.first(StreamType.DEPTH)) {
+                            if (isCaptureDepth) {
+
+                                    final byte[] larray = new byte[f.as(VideoFrame.class).getWidth()*
+                                            f.as(VideoFrame.class).getHeight()];
+                                    f.getData(larray);
+                                    getBackgroundHandler().post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        try {
+                                            nSaveDepthwithData(larray,f.as(VideoFrame.class).getWidth(),
+                                                    f.as(VideoFrame.class).getHeight(),
+                                                    getApplication().getFilesDir().getAbsolutePath()+"/"+"depthFrame.xml");
+//                                            mBackgroundRemover.saveDepthBitmap(getApplicationContext(),"depthFrame.xml");
+                                            isCaptureDepth=false;
+                                        } catch (Exception e) {
+                                            e.printStackTrace();
+                                        }
+                                    }
+                                });
+
+                            }
                             mBackgroundRemover.setDepthFrame(f);
                             mDepthFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
                         }
@@ -217,6 +272,7 @@ public class MainActivity extends AppCompatActivity {
     void startRepeatingTask() {
         try {
             mPipeline.start(mConfig);
+            mCaptureButton.setVisibility(View.VISIBLE);
             updateBitmap.run();
         } catch (Exception e){
             Log.e(TAG, e.getMessage());
@@ -227,6 +283,34 @@ public class MainActivity extends AppCompatActivity {
         mHandler.removeCallbacks(updateBitmap);
         if(mPipeline != null)
             mPipeline.stop();
+        mCaptureButton.setVisibility(View.INVISIBLE);
+    }
+
+
+    public native void nSaveDepthColor(long depthHandle,long colorHandle,String filename);
+    public native void nSaveDepthwithData(byte [] data,int width,int height,String filename);
+    public native void nSaveDepth(long depthHandle,String filename);
+
+
+    public void captureFrames(View view) {
+//        getBackgroundHandler().post(new Runnable() {
+//            @Override
+//            public void run() {
+//                nSaveDepthColor(mBackgroundRemover.getDepthFrame().as(VideoFrame.class).getHandle(),
+//                        mBackgroundRemover.getColorFrame().as(VideoFrame.class).getHandle(),getApplication().getFilesDir().getAbsolutePath()+"/"+"depthFrame.xml");
+//            }
+//        });
+        isCaptureDepth = true;
+        isCaptureVideo = true;
+    }
+
+    private Handler getBackgroundHandler() {
+        if (mBackgroundHandler == null) {
+            HandlerThread thread = new HandlerThread("background");
+            thread.start();
+            mBackgroundHandler = new Handler(thread.getLooper());
+        }
+        return mBackgroundHandler;
     }
 
 

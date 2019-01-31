@@ -1,6 +1,7 @@
 #include <jni.h>
 #include "error.h"
 #include "../../../include/librealsense2/rs.h"
+#include "../android_uvc/android_debug.h"
 
 JNIEXPORT void JNICALL
 Java_com_intel_realsense_librealsense_Frame_nAddRef(JNIEnv *env, jclass type, jlong handle) {
@@ -12,6 +13,11 @@ Java_com_intel_realsense_librealsense_Frame_nAddRef(JNIEnv *env, jclass type, jl
 JNIEXPORT void JNICALL
 Java_com_intel_realsense_librealsense_Frame_nRelease(JNIEnv *env, jclass type, jlong handle) {
     rs2_release_frame((rs2_frame *) handle);
+}
+
+JNIEXPORT void JNICALL
+Java_com_intel_realsense_librealsense_Frame_nKeep(JNIEnv *env, jclass type, jlong handle) {
+rs2_keep_frame((rs2_frame *) handle);
 }
 
 JNIEXPORT jlong JNICALL
@@ -28,6 +34,15 @@ Java_com_intel_realsense_librealsense_Frame_nGetData(JNIEnv *env, jclass type, j
     jsize length = (*env)->GetArrayLength(env, data_);
     rs2_error *e = NULL;
     (*env)->SetByteArrayRegion(env, data_, 0, length, rs2_get_frame_data((const rs2_frame *) handle, &e));
+    handle_error(env, e);
+}
+
+JNIEXPORT void JNICALL
+Java_com_intel_realsense_librealsense_Frame_nGetDataInt(JNIEnv *env, jclass type, jlong handle,
+                                                                                jintArray data_) {
+    jsize length = (*env)->GetArrayLength(env, data_);
+    rs2_error *e = NULL;
+    (*env)->SetIntArrayRegion(env, data_, 0, length, rs2_get_frame_data((const rs2_frame *) handle, &e));
     handle_error(env, e);
 }
 

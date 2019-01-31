@@ -17,8 +17,10 @@ public class Device extends LrsClass {
 
     }
 
+
     private static native long nCreate(long profileHandle);
     private static native long nCreateWithContext(long contextHandle);
+//    public static native float nGetDepthScale(long handle);
 
 
 }

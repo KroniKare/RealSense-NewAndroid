@@ -36,7 +36,8 @@
         android:layout_alignParentBottom="true"
         android:layout_marginStart="0dp"
         android:layout_marginBottom="0dp"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:visibility="gone">
 
         <Button
             android:id="@+id/btnStart"
@@ -47,8 +48,21 @@
             android:background="@color/intel_blue"
             android:text="Start"
             android:textColor="#ffffff"
-            android:visibility="gone"/>
+            android:visibility="visible"/>
+
+        <Button
+            android:id="@+id/btnCapture"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|top"
+            android:layout_margin="16dp"
+            android:background="@color/intel_blue"
+            android:text="Capture"
+            android:textColor="#ffffff"
+            android:visibility="invisible"
+            android:onClick="captureFrames"/>
     </android.support.v7.widget.LinearLayoutCompat>
+
 
 
 </RelativeLayout>

@@ -19,6 +19,9 @@ public class Frame extends LrsClass {
     public void getData(byte[] data) {
         nGetData(mHandle, data);
     }
+    public void getDataInt(int[] data) {
+        nGetDataInt(mHandle, data);
+    }
 
     public <T extends Frame> T as(Class<T> type) {
         return (T) this;
@@ -36,11 +39,16 @@ public class Frame extends LrsClass {
     public void close() throws Exception {
         nRelease(mHandle);
     }
+    public void keep(){
+        nKeep(mHandle);
+    }
 
     private static native boolean nIsFrameExtendableTo(long handle, int extension);
     private static native void nAddRef(long handle);
     private static native void nRelease(long handle);
+    private static native void nKeep(long handle);
     protected static native long nGetStreamProfile(long handle);
     private static native void nGetData(long handle, byte[] data);
+    private static native void nGetDataInt(long handle, int[] data);
     private static native int nGetNumber(long handle);
 }
