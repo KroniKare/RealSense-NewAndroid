@@ -1,9 +1,9 @@
 #include <jni.h>
 
 #include <librealsense2/hpp/rs_frame.hpp>
-#include "../../../../../../../src/android/android_uvc/android_debug.h"
 #include "../../../../../../../src/android/jni/error.h"
 #include "../../../../../../../examples/C/example.h"
+#include "../../../../../../../src/android/usb_host/android_debug.h"
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 

@@ -4,7 +4,6 @@
 #include "../../../include/librealsense2/h/rs_pipeline.h"
 #include "../../../include/librealsense2/h/rs_device.h"
 #include "../../../include/librealsense2/rs_advanced_mode.h"
-#include "../android_uvc/android_debug.h"
 
 
 JNIEXPORT void JNICALL
@@ -50,7 +49,6 @@ Java_com_intel_realsense_librealsense_AdvancedMode_nGetAdvancedModeOptions(JNIEn
     rs2_error *e = NULL;
     STDepthTableControl  group;
     rs2_get_depth_table((rs2_device*) deviceHandle, &group, 0, &e);
-    handle_error(env, e);
 
     (*env)->SetFloatField(env, depthTableControl, duField    , group.depthUnits);
     (*env)->SetIntField(env, depthTableControl,   dcminField , group.depthClampMin);

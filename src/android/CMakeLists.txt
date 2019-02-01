@@ -41,6 +41,7 @@ target_sources(${LRS_TARGET}
         "${CMAKE_CURRENT_LIST_DIR}/jni/options.c"
         "${CMAKE_CURRENT_LIST_DIR}/jni/device.c"
         "${CMAKE_CURRENT_LIST_DIR}/jni/advancedmode.c"
+        "${CMAKE_CURRENT_LIST_DIR}/jni/processing_block.cpp"
 
 
 )

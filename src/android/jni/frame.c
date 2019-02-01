@@ -1,7 +1,7 @@
 #include <jni.h>
 #include "error.h"
 #include "../../../include/librealsense2/rs.h"
-#include "../android_uvc/android_debug.h"
+#include "../usb_host/android_debug.h"
 
 JNIEXPORT void JNICALL
 Java_com_intel_realsense_librealsense_Frame_nAddRef(JNIEnv *env, jclass type, jlong handle) {

@@ -27,6 +27,7 @@ import com.intel.realsense.librealsense.FrameSet;
 import com.intel.realsense.librealsense.Option;
 import com.intel.realsense.librealsense.Pipeline;
 import com.intel.realsense.librealsense.RsContext;
+import com.intel.realsense.librealsense.SavingData;
 import com.intel.realsense.librealsense.StreamFormat;
 import com.intel.realsense.librealsense.StreamType;
 import com.intel.realsense.librealsense.VideoFrame;
@@ -210,24 +211,26 @@ public class MainActivity extends AppCompatActivity {
                         }
                         try(Frame f = processed.first(StreamType.DEPTH)) {
                             if (isCaptureDepth) {
-
-                                    final byte[] larray = new byte[f.as(VideoFrame.class).getWidth()*
-                                            f.as(VideoFrame.class).getHeight()];
-                                    f.getData(larray);
-                                    getBackgroundHandler().post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        try {
-                                            nSaveDepthwithData(larray,f.as(VideoFrame.class).getWidth(),
-                                                    f.as(VideoFrame.class).getHeight(),
-                                                    getApplication().getFilesDir().getAbsolutePath()+"/"+"depthFrame.xml");
-//                                            mBackgroundRemover.saveDepthBitmap(getApplicationContext(),"depthFrame.xml");
-                                            isCaptureDepth=false;
-                                        } catch (Exception e) {
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                });
+//                                    final byte[] larray = new byte[f.as(VideoFrame.class).getWidth()*
+//                                            f.as(VideoFrame.class).getHeight()];
+//                                    f.getData(larray);
+//                                    getBackgroundHandler().post(new Runnable() {
+//                                    @Override
+//                                    public void run() {
+//                                        try {
+//                                            nSaveDepthwithData(larray,f.as(VideoFrame.class).getWidth(),
+//                                                    f.as(VideoFrame.class).getHeight(),
+//                                                    getApplication().getFilesDir().getAbsolutePath()+"/"+"depthFrame.xml");
+////                                            mBackgroundRemover.saveDepthBitmap(getApplicationContext(),"depthFrame.xml");
+//                                            isCaptureDepth=false;
+//                                        } catch (Exception e) {
+//                                            e.printStackTrace();
+//                                        }
+//                                    }
+//                                });
+                                SavingData savingData = new SavingData(createFilePath("depthFrame.xml"));
+                                f.applyFilter(savingData);
+                                isCaptureDepth=false;
 
                             }
                             mBackgroundRemover.setDepthFrame(f);
@@ -313,5 +316,9 @@ public class MainActivity extends AppCompatActivity {
         return mBackgroundHandler;
     }
 
+
+    private String createFilePath(String filename){
+        return getApplication().getFilesDir().getAbsolutePath()+"/"+filename;
+    }
 
 }
