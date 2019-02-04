@@ -17,6 +17,7 @@ import android.widget.ImageView;
 
 import com.intel.realsense.librealsense.AdvancedMode;
 import com.intel.realsense.librealsense.Alignment;
+import com.intel.realsense.librealsense.Colorizer;
 import com.intel.realsense.librealsense.Config;
 import com.intel.realsense.librealsense.Decimation;
 import com.intel.realsense.librealsense.Device;
@@ -24,7 +25,6 @@ import com.intel.realsense.librealsense.DeviceListener;
 import com.intel.realsense.librealsense.DeviceManager;
 import com.intel.realsense.librealsense.Frame;
 import com.intel.realsense.librealsense.FrameSet;
-import com.intel.realsense.librealsense.Option;
 import com.intel.realsense.librealsense.Pipeline;
 import com.intel.realsense.librealsense.RsContext;
 import com.intel.realsense.librealsense.SavingData;
@@ -34,8 +34,6 @@ import com.intel.realsense.librealsense.VideoFrame;
 import com.intel.realsense.librealsense.VideoStreamProfile;
 
 import java.nio.ByteBuffer;
-
-import static com.intel.realsense.capture.BackgroundRemover.createBitmapFromFrame;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -198,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
 
                             mBackgroundRemover.removeBackground(MainActivity.this, f,8, mImageView);
                             if (isCaptureVideo){
-                                mBackgroundRemover.saveBitmap(getApplicationContext(),"color_image.jpg");
+                                mBackgroundRemover.saveColorBitmap(getApplicationContext(),"color_image.png");
                                 isCaptureVideo = false;
                             }
 
@@ -228,6 +226,8 @@ public class MainActivity extends AppCompatActivity {
 //                                        }
 //                                    }
 //                                });
+                                mBackgroundRemover.saveDepthBitmap(MainActivity.this,"depth.png");
+                                mBackgroundRemover.saveDepthBytes(MainActivity.this,"bytes.txt");
                                 SavingData savingData = new SavingData(createFilePath("depthFrame.xml"));
                                 f.applyFilter(savingData);
                                 isCaptureDepth=false;

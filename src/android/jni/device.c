@@ -25,11 +25,11 @@ Java_com_intel_realsense_librealsense_Device_nCreateWithContext(JNIEnv *env, jcl
     return rppd;
 }
 
-// JNIEXPORT jlong JNICALL
-// Java_com_intel_realsense_librealsense_Device_nGetDepthScale(JNIEnv *env, jclass type,
-//                                                        jlong deviceHandle) {
-//     rs2_error* e = NULL;
-//     float  = rs2_get_depth_scale((rs2_context*) contextHandle, &e);
-//     handle_error(env, e);
-//     return rppd;
-// }
+//  JNIEXPORT jlong JNICALL
+//  Java_com_intel_realsense_librealsense_Device_nGetDepthScale(JNIEnv *env, jclass type,
+//                                                         jlong deviceHandle) {
+//      rs2_error* e = NULL;
+//      float  = rs2_get_depth_scale((rs2_context*) contextHandle, &e);
+//      handle_error(env, e);
+//      return rppd;
+//  }
