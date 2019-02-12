@@ -58,8 +58,5 @@ public class AdvancedMode extends LrsClass {
     private static native void nGetAdvancedModeOptions(long deviceHandle, DepthTableControl depthTableControl);
     private static native void nSetAdvancedModeOptions(long deviceHandle, DepthTableControl depthTableControl);
 
-//    private static native void nGetAdvancedModeOptions(long deviceHandle, float depthUnits,int depthClampMin, int depthClampMax, float disparityMode,int disparityShift);
-//    private static native void nSetAdvancedModeOptions(long deviceHandle, float depthUnits,int depthClampMin, int depthClampMax, float disparityMode,int disparityShift);
-
 
 }

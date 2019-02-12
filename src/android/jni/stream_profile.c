@@ -89,6 +89,4 @@ Java_com_intel_realsense_librealsense_VideoStreamProfile_nGetIntrinsicParams(JNI
     (*env)->SetFloatField(env, params, fyField,  intr.fy);
 
 
-
-
 }

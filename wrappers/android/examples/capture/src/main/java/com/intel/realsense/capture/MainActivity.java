@@ -26,6 +26,7 @@ import com.intel.realsense.librealsense.DeviceManager;
 import com.intel.realsense.librealsense.Frame;
 import com.intel.realsense.librealsense.FrameSet;
 import com.intel.realsense.librealsense.Pipeline;
+import com.intel.realsense.librealsense.RemoveBackground;
 import com.intel.realsense.librealsense.RsContext;
 import com.intel.realsense.librealsense.SavingData;
 import com.intel.realsense.librealsense.StreamFormat;
@@ -34,6 +35,13 @@ import com.intel.realsense.librealsense.VideoFrame;
 import com.intel.realsense.librealsense.VideoStreamProfile;
 
 import java.nio.ByteBuffer;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+import static com.intel.realsense.capture.SavingFrameData.saveDepthBytes;
+import static com.intel.realsense.capture.SavingFrameData.saveIntrinsicParameters;
+import static com.intel.realsense.capture.SavingFrameData.saveVideoFrame;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -49,9 +57,10 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayoutCompat mButtonPanel;
     Handler mBackgroundHandler;
     Handler mCaptureHandler;
-    Boolean isCaptureDepth=false;
+    private Boolean isCaptureDepth=false;
     private boolean isCaptureVideo = false;
-
+    private Boolean isCaptureVideRB = false;
+    String mFormatedDate;
 
 
     private boolean mIsStreaming = false;
@@ -66,9 +75,8 @@ public class MainActivity extends AppCompatActivity {
     private AdvancedMode mAdvancedMode;
     private AdvancedMode.DepthTableControl mDepthTableControl;
 
-    private Decimation mDecimation = new Decimation();
     private Alignment mAlignment = new Alignment();
-    private BackgroundRemover mBackgroundRemover = new BackgroundRemover();
+    private RemoveBackground mRemoveBackground;
     RSMeasurement rsMeasurement = new RSMeasurement();
 
     private ImageView mImageView;
@@ -80,19 +88,13 @@ public class MainActivity extends AppCompatActivity {
 
             mDevice= new Device(rsContext);
             mAdvancedMode = new AdvancedMode(mDevice);
-//            mDepthTableControl = new AdvancedMode.DepthTableControl();
             mDepthTableControl=mAdvancedMode.getmDepthTableControl();
             Log.i(TAG, "onDeviceAttach: depthUnits: "+mDepthTableControl.depthUnits);
             mDepthTableControl.disparityShift = 60;
-            mDepthTableControl.depthUnits = 1000;
-//            mDepthTableControl.disparityMode = 0;
-//            mDepthTableControl.depthClampMax = 65536;
-//            mDepthTableControl.depthClampMin = 0;
             mAdvancedMode.setmDepthTableControl(mDepthTableControl);
 
             mDepthTableControl=mAdvancedMode.getmDepthTableControl();
-            Log.i(TAG, "onDeviceAttach: depthUnits 2: "+mDepthTableControl.depthUnits);
-
+            mRemoveBackground = new RemoveBackground(40,mDepthTableControl.depthUnits);
 
             mPipeline = new Pipeline(rsContext);
             mPipeline.getmPipelineProfileHandle();
@@ -181,6 +183,8 @@ public class MainActivity extends AppCompatActivity {
 
         mConfig.enableStream(StreamType.DEPTH,-1, 640, 480, StreamFormat.Z16,30);
         mConfig.enableStream(StreamType.COLOR,-1, 640, 480, StreamFormat.RGBA8,30);
+        //TODO: Add IR stream
+//        mConfig.enableStream(StreamType.INFRARED,-1, 640, 480, StreamFormat.Y8,30);
 
         mImageView= (ImageView) findViewById(R.id.colorImageView);
     }
@@ -189,57 +193,45 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             try {
-                try(FrameSet frames = mPipeline.waitForFrames())
-                {
-                    try(FrameSet processed = frames.applyFilter(mAlignment)) {
-                        try(Frame f = processed.first(StreamType.COLOR)) {
+                try (FrameSet frames = mPipeline.waitForFrames()) {
+                    try (FrameSet processed_ = frames.applyFilter(mAlignment)) {
 
-                            mBackgroundRemover.removeBackground(MainActivity.this, f,8, mImageView);
-                            if (isCaptureVideo){
-                                mBackgroundRemover.saveColorBitmap(getApplicationContext(),"color_image.png");
-                                isCaptureVideo = false;
+                        if (isCaptureVideo) {
+                            try (Frame f = processed_.first(StreamType.COLOR)) {
+                                saveVideoFrame(MainActivity.this,
+                                        f.as(VideoFrame.class),
+                                        "color_image_"+mFormatedDate+".png");
                             }
-
-                          if (!rsMeasurement.colorIntrinsicRead) {
-                              VideoStreamProfile videoStreamProfile = ((VideoStreamProfile) f.getProfile());
-                              rsMeasurement.setColorIntrinsicParameters(videoStreamProfile.getmIntrinsicParameters());
-                          }
-
-//                            mColorFrameViewer.show(MainActivity.this, mF.as(VideoFrame.class));
-                        }
-                        try(Frame f = processed.first(StreamType.DEPTH)) {
-                            if (isCaptureDepth) {
-//                                    final byte[] larray = new byte[f.as(VideoFrame.class).getWidth()*
-//                                            f.as(VideoFrame.class).getHeight()];
-//                                    f.getData(larray);
-//                                    getBackgroundHandler().post(new Runnable() {
-//                                    @Override
-//                                    public void run() {
-//                                        try {
-//                                            nSaveDepthwithData(larray,f.as(VideoFrame.class).getWidth(),
-//                                                    f.as(VideoFrame.class).getHeight(),
-//                                                    getApplication().getFilesDir().getAbsolutePath()+"/"+"depthFrame.xml");
-////                                            mBackgroundRemover.saveDepthBitmap(getApplicationContext(),"depthFrame.xml");
-//                                            isCaptureDepth=false;
-//                                        } catch (Exception e) {
-//                                            e.printStackTrace();
-//                                        }
-//                                    }
-//                                });
-                                mBackgroundRemover.saveDepthBitmap(MainActivity.this,"depth.png");
-                                mBackgroundRemover.saveDepthBytes(MainActivity.this,"bytes.txt");
-                                SavingData savingData = new SavingData(createFilePath("depthFrame.xml"));
-                                f.applyFilter(savingData);
-                                isCaptureDepth=false;
+                            try (Frame f = processed_.first(StreamType.DEPTH)){
+                                String fileName = "depth_byte_"+mFormatedDate+".txt";
+                                saveDepthBytes(MainActivity.this,
+                                        f.as(VideoFrame.class), fileName);
+                                VideoStreamProfile videoStreamProfile =
+                                        ((VideoStreamProfile) f.getProfile());
+                                saveIntrinsicParameters(MainActivity.this,
+                                        videoStreamProfile.getmIntrinsicParameters(),fileName);
 
                             }
-                            mBackgroundRemover.setDepthFrame(f);
-                            mDepthFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
+                            isCaptureVideo = false;
                         }
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, e.getMessage());
-                }
+
+
+                        // For viewing depth and color frames (background removed)
+                        try (FrameSet processed =processed_.applyFilter(mRemoveBackground)) {
+                            try (Frame f = processed.first(StreamType.COLOR)) {
+                                mColorFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
+                                if (isCaptureVideRB) {
+                                    saveVideoFrame(MainActivity.this, f.as(VideoFrame.class),
+                                            "color_image_rb.png");
+                                    isCaptureVideRB = false;
+                                }
+                            }
+                            try (Frame f = processed.first(StreamType.DEPTH)) {
+                                mDepthFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
+                            }
+                        } catch (Exception e) { Log.e(TAG, "Remove Background ::" + e.getMessage());}
+                    } catch (Exception e) { Log.e(TAG, "Alignment ::" + e.getMessage()); }
+                } catch (Exception e) { Log.e(TAG, "Wait for Frames :: " + e.getMessage());}
             } finally {
                 mHandler.post(updateBitmap);
             }
@@ -305,6 +297,10 @@ public class MainActivity extends AppCompatActivity {
 //        });
         isCaptureDepth = true;
         isCaptureVideo = true;
+        isCaptureVideRB = true;
+        SimpleDateFormat sdf = new SimpleDateFormat(
+                "yyyy-MM-dd-HH-mm-ssZ", Locale.getDefault());
+        mFormatedDate = sdf.format(new Date());
     }
 
     private Handler getBackgroundHandler() {

@@ -112,7 +112,7 @@ class BackgroundRemover {
 
 
     public void writeToFile(byte[] data, String fileName) throws IOException{
-        FileOutputStream out = new FileOutputStream(fileName);
+        FileOutputStream out = new FileOutputStream(fileName,true);
         out.write(data);
         out.close();
     }

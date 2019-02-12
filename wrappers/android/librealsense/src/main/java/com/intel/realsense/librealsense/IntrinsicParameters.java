@@ -13,7 +13,9 @@ public class IntrinsicParameters {
 //        float         coeffs[5]; /**< Distortion coefficients, order: k1, k2, p1, p2, k3 */
 
 
+    @Override
+    public String toString() {
+        return '\n' + "intrinsics" + '\n' + width + "," + height + "," + ppx + "," + ppy + "," + fx + "," + fy;
 
-
-
+    }
 }
