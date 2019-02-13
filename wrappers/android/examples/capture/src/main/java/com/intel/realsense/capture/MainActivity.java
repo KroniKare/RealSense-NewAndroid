@@ -17,9 +17,7 @@ import android.widget.ImageView;
 
 import com.intel.realsense.librealsense.AdvancedMode;
 import com.intel.realsense.librealsense.Alignment;
-import com.intel.realsense.librealsense.Colorizer;
 import com.intel.realsense.librealsense.Config;
-import com.intel.realsense.librealsense.Decimation;
 import com.intel.realsense.librealsense.Device;
 import com.intel.realsense.librealsense.DeviceListener;
 import com.intel.realsense.librealsense.DeviceManager;
@@ -28,7 +26,6 @@ import com.intel.realsense.librealsense.FrameSet;
 import com.intel.realsense.librealsense.Pipeline;
 import com.intel.realsense.librealsense.RemoveBackground;
 import com.intel.realsense.librealsense.RsContext;
-import com.intel.realsense.librealsense.SavingData;
 import com.intel.realsense.librealsense.StreamFormat;
 import com.intel.realsense.librealsense.StreamType;
 import com.intel.realsense.librealsense.VideoFrame;
@@ -48,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     static {
         System.loadLibrary("native-lib");
     }
+
     private static final String TAG = "lrs capture example";
     private static final int MY_PERMISSIONS_REQUEST_CAMERA = 0;
 
@@ -57,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayoutCompat mButtonPanel;
     Handler mBackgroundHandler;
     Handler mCaptureHandler;
-    private Boolean isCaptureDepth=false;
+    private Boolean isCaptureDepth = false;
     private boolean isCaptureVideo = false;
     private Boolean isCaptureVideRB = false;
     String mFormatedDate;
@@ -86,15 +84,15 @@ public class MainActivity extends AppCompatActivity {
         public void onDeviceAttach() {
             RsContext rsContext = new RsContext();
 
-            mDevice= new Device(rsContext);
+            mDevice = new Device(rsContext);
             mAdvancedMode = new AdvancedMode(mDevice);
-            mDepthTableControl=mAdvancedMode.getmDepthTableControl();
-            Log.i(TAG, "onDeviceAttach: depthUnits: "+mDepthTableControl.depthUnits);
+            mDepthTableControl = mAdvancedMode.getmDepthTableControl();
+            Log.i(TAG, "onDeviceAttach: depthUnits: " + mDepthTableControl.depthUnits);
             mDepthTableControl.disparityShift = 60;
             mAdvancedMode.setmDepthTableControl(mDepthTableControl);
 
-            mDepthTableControl=mAdvancedMode.getmDepthTableControl();
-            mRemoveBackground = new RemoveBackground(40,mDepthTableControl.depthUnits);
+            mDepthTableControl = mAdvancedMode.getmDepthTableControl();
+            mRemoveBackground = new RemoveBackground(40, mDepthTableControl.depthUnits);
 
             mPipeline = new Pipeline(rsContext);
             mPipeline.getmPipelineProfileHandle();
@@ -156,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
         stop();
     }
 
-    void init(){
+    void init() {
         //DeviceManager must be initialized before any interaction with physical RealSense devices.
         DeviceManager.init(mContext);
 
@@ -181,12 +179,12 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        mConfig.enableStream(StreamType.DEPTH,-1, 640, 480, StreamFormat.Z16,30);
-        mConfig.enableStream(StreamType.COLOR,-1, 640, 480, StreamFormat.RGBA8,30);
+        mConfig.enableStream(StreamType.DEPTH, -1, 640, 480, StreamFormat.Z16, 30);
+        mConfig.enableStream(StreamType.COLOR, -1, 640, 480, StreamFormat.RGBA8, 30);
         //TODO: Add IR stream
 //        mConfig.enableStream(StreamType.INFRARED,-1, 640, 480, StreamFormat.Y8,30);
 
-        mImageView= (ImageView) findViewById(R.id.colorImageView);
+        mImageView = (ImageView) findViewById(R.id.colorImageView);
     }
 
     Runnable updateBitmap = new Runnable() {
@@ -200,16 +198,16 @@ public class MainActivity extends AppCompatActivity {
                             try (Frame f = processed_.first(StreamType.COLOR)) {
                                 saveVideoFrame(MainActivity.this,
                                         f.as(VideoFrame.class),
-                                        "color_image_"+mFormatedDate+".png");
+                                        "color_image_" + mFormatedDate + ".png");
                             }
-                            try (Frame f = processed_.first(StreamType.DEPTH)){
-                                String fileName = "depth_byte_"+mFormatedDate+".txt";
+                            try (Frame f = processed_.first(StreamType.DEPTH)) {
+                                String fileName = "depth_byte_" + mFormatedDate + ".txt";
                                 saveDepthBytes(MainActivity.this,
                                         f.as(VideoFrame.class), fileName);
                                 VideoStreamProfile videoStreamProfile =
                                         ((VideoStreamProfile) f.getProfile());
                                 saveIntrinsicParameters(MainActivity.this,
-                                        videoStreamProfile.getmIntrinsicParameters(),fileName);
+                                        videoStreamProfile.getmIntrinsicParameters(), fileName);
 
                             }
                             isCaptureVideo = false;
@@ -217,7 +215,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                         // For viewing depth and color frames (background removed)
-                        try (FrameSet processed =processed_.applyFilter(mRemoveBackground)) {
+                        try (FrameSet processed = processed_.applyFilter(mRemoveBackground)) {
                             try (Frame f = processed.first(StreamType.COLOR)) {
                                 mColorFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
                                 if (isCaptureVideRB) {
@@ -229,17 +227,23 @@ public class MainActivity extends AppCompatActivity {
                             try (Frame f = processed.first(StreamType.DEPTH)) {
                                 mDepthFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
                             }
-                        } catch (Exception e) { Log.e(TAG, "Remove Background ::" + e.getMessage());}
-                    } catch (Exception e) { Log.e(TAG, "Alignment ::" + e.getMessage()); }
-                } catch (Exception e) { Log.e(TAG, "Wait for Frames :: " + e.getMessage());}
+                        } catch (Exception e) {
+                            Log.e(TAG, "Remove Background ::" + e.getMessage());
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Alignment ::" + e.getMessage());
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Wait for Frames :: " + e.getMessage());
+                }
             } finally {
                 mHandler.post(updateBitmap);
             }
         }
     };
 
-    synchronized void start(){
-        if(mIsStreaming)
+    synchronized void start() {
+        if (mIsStreaming)
             return;
         mIsStreaming = true;
         runOnUiThread(new Runnable() {
@@ -251,8 +255,8 @@ public class MainActivity extends AppCompatActivity {
         startRepeatingTask();
     }
 
-    synchronized void stop(){
-        if(mIsStreaming == false)
+    synchronized void stop() {
+        if (mIsStreaming == false)
             return;
         runOnUiThread(new Runnable() {
             @Override
@@ -269,22 +273,24 @@ public class MainActivity extends AppCompatActivity {
             mPipeline.start(mConfig);
             mCaptureButton.setVisibility(View.VISIBLE);
             updateBitmap.run();
-        } catch (Exception e){
+        } catch (Exception e) {
             Log.e(TAG, e.getMessage());
         }
     }
 
     void stopRepeatingTask() {
         mHandler.removeCallbacks(updateBitmap);
-        if(mPipeline != null)
+        if (mPipeline != null)
             mPipeline.stop();
         mCaptureButton.setVisibility(View.INVISIBLE);
     }
 
 
-    public native void nSaveDepthColor(long depthHandle,long colorHandle,String filename);
-    public native void nSaveDepthwithData(byte [] data,int width,int height,String filename);
-    public native void nSaveDepth(long depthHandle,String filename);
+    public native void nSaveDepthColor(long depthHandle, long colorHandle, String filename);
+
+    public native void nSaveDepthwithData(byte[] data, int width, int height, String filename);
+
+    public native void nSaveDepth(long depthHandle, String filename);
 
 
     public void captureFrames(View view) {
@@ -313,8 +319,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private String createFilePath(String filename){
-        return getApplication().getFilesDir().getAbsolutePath()+"/"+filename;
+    private String createFilePath(String filename) {
+        return getApplication().getFilesDir().getAbsolutePath() + "/" + filename;
     }
 
 }
