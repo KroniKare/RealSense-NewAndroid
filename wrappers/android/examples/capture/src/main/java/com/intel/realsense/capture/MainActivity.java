@@ -1,6 +1,7 @@
 package com.intel.realsense.capture;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.os.Bundle;
@@ -12,18 +13,19 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutCompat;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
-import android.widget.ImageView;
+import android.widget.TextView;
 
+import com.intel.realsense.librealsense.Colorizer;
 import com.intel.realsense.librealsense.AdvancedMode;
 import com.intel.realsense.librealsense.Alignment;
 import com.intel.realsense.librealsense.Config;
 import com.intel.realsense.librealsense.Device;
 import com.intel.realsense.librealsense.DeviceListener;
-import com.intel.realsense.librealsense.DeviceManager;
 import com.intel.realsense.librealsense.Frame;
 import com.intel.realsense.librealsense.FrameSet;
+import com.intel.realsense.librealsense.GLRsSurfaceView;
 import com.intel.realsense.librealsense.Pipeline;
+import com.intel.realsense.librealsense.RsContext;
 import com.intel.realsense.librealsense.RemoveBackground;
 import com.intel.realsense.librealsense.RsContext;
 import com.intel.realsense.librealsense.StreamFormat;
@@ -41,17 +43,11 @@ import static com.intel.realsense.capture.SavingFrameData.saveIntrinsicParameter
 import static com.intel.realsense.capture.SavingFrameData.saveVideoFrame;
 
 public class MainActivity extends AppCompatActivity {
-
-    static {
-        System.loadLibrary("native-lib");
-    }
-
     private static final String TAG = "lrs capture example";
-    private static final int MY_PERMISSIONS_REQUEST_CAMERA = 0;
+    private static final int PERMISSIONS_REQUEST_CAMERA = 0;
 
+    private boolean mPermissionsGrunted = false;
     private android.content.Context mContext = this;
-    private Button mStartStopButton;
-    private Button mCaptureButton;
     private LinearLayoutCompat mButtonPanel;
     Handler mBackgroundHandler;
     Handler mCaptureHandler;
@@ -61,14 +57,16 @@ public class MainActivity extends AppCompatActivity {
     String mFormatedDate;
 
 
+    private Context mAppContext;
+    private TextView mBackGroundText;
+    private GLRsSurfaceView mGLSurfaceView;
     private boolean mIsStreaming = false;
     private final Handler mHandler = new Handler();
 
-    private FrameViewer mColorFrameViewer;
-    private FrameViewer mDepthFrameViewer;
-
-    private Config mConfig = new Config();
     private Pipeline mPipeline;
+    private Config mConfig;
+    private Colorizer mColorizer;
+    private RsContext mRsContext;
     private Device mDevice;
     private AdvancedMode mAdvancedMode;
     private AdvancedMode.DepthTableControl mDepthTableControl;
@@ -77,123 +75,122 @@ public class MainActivity extends AppCompatActivity {
     private RemoveBackground mRemoveBackground;
     RSMeasurement rsMeasurement = new RSMeasurement();
 
-    private ImageView mImageView;
-
-    private DeviceListener mListener = new DeviceListener() {
-        @Override
-        public void onDeviceAttach() {
-            RsContext rsContext = new RsContext();
-
-            mDevice = new Device(rsContext);
-            mAdvancedMode = new AdvancedMode(mDevice);
-            mDepthTableControl = mAdvancedMode.getmDepthTableControl();
-            Log.i(TAG, "onDeviceAttach: depthUnits: " + mDepthTableControl.depthUnits);
-            mDepthTableControl.disparityShift = 60;
-            mAdvancedMode.setmDepthTableControl(mDepthTableControl);
-
-            mDepthTableControl = mAdvancedMode.getmDepthTableControl();
-            mRemoveBackground = new RemoveBackground(40, mDepthTableControl.depthUnits);
-
-            mPipeline = new Pipeline(rsContext);
-            mPipeline.getmPipelineProfileHandle();
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    mButtonPanel.setVisibility(View.VISIBLE);
-                }
-            });
-
-        }
-
-        @Override
-        public void onDeviceDetach() {
-            mPipeline = null;
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    mButtonPanel.setVisibility(View.GONE);
-                }
-            });
-            try {
-                mPipeline.close();
-            } catch (Exception e) {
-                Log.e(TAG, e.getMessage());
-            }
-            mPipeline = null;
-            stop();
-        }
-    };
-    private Bitmap mBitmapDepth;
-    private ByteBuffer mBufferDepth;
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CONTACTS}, MY_PERMISSIONS_REQUEST_CAMERA);
-            return;
-        }
-        init();
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        mAppContext = getApplicationContext();
+        mBackGroundText = findViewById(R.id.connectCameraText);
+        mGLSurfaceView = findViewById(R.id.glSurfaceView);
+        mGLSurfaceView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE
+            | View.SYSTEM_UI_FLAG_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+
         // Android 9 also requires camera permissions
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, MY_PERMISSIONS_REQUEST_CAMERA);
+        if (android.os.Build.VERSION.SDK_INT > android.os.Build.VERSION_CODES.O &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, PERMISSIONS_REQUEST_CAMERA);
             return;
         }
-        init();
+
+        mPermissionsGrunted = true;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, PERMISSIONS_REQUEST_CAMERA);
+            return;
+        }
+        mPermissionsGrunted = true;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if(mPermissionsGrunted)
+            init();
+        else
+            Log.e(TAG, "missing permissions");
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        mRsContext.close();
         stop();
     }
 
-    void init() {
-        //DeviceManager must be initialized before any interaction with physical RealSense devices.
-        DeviceManager.init(mContext);
+    private void init(){
+        //RsContext.init must be called once in the application lifetime before any interaction with physical RealSense devices.
+        //For multi activities applications use the application context instead of the activity context
+        RsContext.init(mAppContext);
 
-        //The UsbHub provides notifications regarding RealSense devices attach/detach events via the DeviceListener.
-        DeviceManager.getUsbHub().addListener(mListener);
+        //Register to notifications regarding RealSense devices attach/detach events via the DeviceListener.
+        mRsContext = new RsContext();
 
-        mColorFrameViewer = new FrameViewer((ImageView) findViewById(R.id.colorImageView));
-        mDepthFrameViewer = new FrameViewer((ImageView) findViewById(R.id.depthImageView));
+        RsContext rsContext = new RsContext();
 
-        mStartStopButton = findViewById(R.id.btnStart);
-        mButtonPanel = findViewById(R.id.buttonPanel);
-        mCaptureButton = findViewById(R.id.btnCapture);
+        mDevice = new Device(rsContext);
+        mAdvancedMode = new AdvancedMode(mDevice);
+        mDepthTableControl = mAdvancedMode.getmDepthTableControl();
+        Log.i(TAG, "onDeviceAttach: depthUnits: " + mDepthTableControl.depthUnits);
+        mDepthTableControl.disparityShift = 60;
+        mAdvancedMode.setmDepthTableControl(mDepthTableControl);
 
-        mStartStopButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (mIsStreaming) {
-                    stop();
-                } else {
-                    start();
-                }
-            }
-        });
+        mDepthTableControl = mAdvancedMode.getmDepthTableControl();
+        mRemoveBackground = new RemoveBackground(40, mDepthTableControl.depthUnits);
 
-        mConfig.enableStream(StreamType.DEPTH, -1, 640, 480, StreamFormat.Z16, 30);
-        mConfig.enableStream(StreamType.COLOR, -1, 640, 480, StreamFormat.RGBA8, 30);
-        //TODO: Add IR stream
-//        mConfig.enableStream(StreamType.INFRARED,-1, 640, 480, StreamFormat.Y8,30);
+        mPipeline = new Pipeline(rsContext);
 
-        mImageView = (ImageView) findViewById(R.id.colorImageView);
+        mRsContext.setDevicesChangedCallback(mListener);
+
+        mPipeline = new Pipeline();
+        mConfig  = new Config();
+        mColorizer = new Colorizer();
+
+        mConfig.enableStream(StreamType.DEPTH, 640, 480);
+        mConfig.enableStream(StreamType.COLOR, 640, 480);
+//        mConfig.enableStream(StreamType.DEPTH, -1, 640, 480, StreamFormat.Z16, 30);
+//        mConfig.enableStream(StreamType.COLOR, -1, 640, 480, StreamFormat.RGBA8, 30);
+        if(mRsContext.getDeviceCount() > 0) {
+            showConnectLabel(false);
+            start();
+        }
     }
 
-    Runnable updateBitmap = new Runnable() {
+    private void showConnectLabel(final boolean state){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mBackGroundText.setVisibility(state ? View.VISIBLE : View.GONE);
+            }
+        });
+    }
+
+    private DeviceListener mListener = new DeviceListener() {
+        @Override
+        public void onDeviceAttach() {
+            showConnectLabel(false);
+        }
+
+        @Override
+        public void onDeviceDetach() {
+            showConnectLabel(true);
+            stop();
+        }
+    };
+
+    Runnable mStreaming = new Runnable() {
         @Override
         public void run() {
             try {
-                try (FrameSet frames = mPipeline.waitForFrames()) {
+                try(FrameSet frames = mPipeline.waitForFrames(1000)) {
                     try (FrameSet processed_ = frames.applyFilter(mAlignment)) {
-
                         if (isCaptureVideo) {
                             try (Frame f = processed_.first(StreamType.COLOR)) {
                                 saveVideoFrame(MainActivity.this,
@@ -214,83 +211,69 @@ public class MainActivity extends AppCompatActivity {
                         }
 
 
-                        // For viewing depth and color frames (background removed)
-                        try (FrameSet processed = processed_.applyFilter(mRemoveBackground)) {
-                            try (Frame f = processed.first(StreamType.COLOR)) {
-                                mColorFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
-                                if (isCaptureVideRB) {
-                                    saveVideoFrame(MainActivity.this, f.as(VideoFrame.class),
-                                            "color_image_rb.png");
-                                    isCaptureVideRB = false;
-                                }
-                            }
-                            try (Frame f = processed.first(StreamType.DEPTH)) {
-                                mDepthFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
-                            }
-                        } catch (Exception e) {
-                            Log.e(TAG, "Remove Background ::" + e.getMessage());
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Alignment ::" + e.getMessage());
                     }
-                } catch (Exception e) {
-                    Log.e(TAG, "Wait for Frames :: " + e.getMessage());
+                    try(FrameSet processed = frames.applyFilter(mColorizer)) {
+                        mGLSurfaceView.upload(processed);
+                        try (Frame f = processed.first(StreamType.COLOR)) {
+                            mColorFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
+                            if (isCaptureVideRB) {
+                                saveVideoFrame(MainActivity.this, f.as(VideoFrame.class),
+                                        "color_image_rb.png");
+                                isCaptureVideRB = false;
+                            }
+                        }
+                        try (Frame f = processed.first(StreamType.DEPTH)) {
+                            mDepthFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
+                        }
+
+
+                    }
                 }
-            } finally {
-                mHandler.post(updateBitmap);
+                mHandler.post(mStreaming);
+            }
+            catch (Exception e) {
+                Log.e(TAG, "streaming, error: " + e.getMessage());
             }
         }
     };
-
-    synchronized void start() {
-        if (mIsStreaming)
+//} catch (Exception e) {
+//        Log.e(TAG, "Remove Background ::" + e.getMessage());
+//        }
+//        } catch (Exception e) {
+//        Log.e(TAG, "Alignment ::" + e.getMessage());
+//        }
+//        } catch (Exception e) {
+//        Log.e(TAG, "Wait for Frames :: " + e.getMessage());
+//        }
+    private synchronized void start() {
+        if(mIsStreaming)
             return;
-        mIsStreaming = true;
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mStartStopButton.setText(R.string.stream_stop);
-            }
-        });
-        startRepeatingTask();
-    }
-
-    synchronized void stop() {
-        if (mIsStreaming == false)
-            return;
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mStartStopButton.setText(R.string.stream_start);
-            }
-        });
-        stopRepeatingTask();
-        mIsStreaming = false;
-    }
-
-    void startRepeatingTask() {
-        try {
+        try{
+            Log.d(TAG, "try start streaming");
+            mGLSurfaceView.clear();
             mPipeline.start(mConfig);
-            mCaptureButton.setVisibility(View.VISIBLE);
-            updateBitmap.run();
+            mIsStreaming = true;
+            mHandler.post(mStreaming);
+            Log.d(TAG, "streaming started successfully");
         } catch (Exception e) {
-            Log.e(TAG, e.getMessage());
+            Log.d(TAG, "failed to start streaming");
         }
     }
 
-    void stopRepeatingTask() {
-        mHandler.removeCallbacks(updateBitmap);
-        if (mPipeline != null)
+    private synchronized void stop() {
+        if(!mIsStreaming)
+            return;
+        try {
+            Log.d(TAG, "try stop streaming");
+            mIsStreaming = false;
+            mHandler.removeCallbacks(mStreaming);
             mPipeline.stop();
-        mCaptureButton.setVisibility(View.INVISIBLE);
+            Log.d(TAG, "streaming stopped successfully");
+        }  catch (Exception e) {
+            Log.d(TAG, "failed to stop streaming");
+            mPipeline = null;
+        }
     }
-
-
-    public native void nSaveDepthColor(long depthHandle, long colorHandle, String filename);
-
-    public native void nSaveDepthwithData(byte[] data, int width, int height, String filename);
-
-    public native void nSaveDepth(long depthHandle, String filename);
 
 
     public void captureFrames(View view) {
@@ -309,18 +292,11 @@ public class MainActivity extends AppCompatActivity {
         mFormatedDate = sdf.format(new Date());
     }
 
-    private Handler getBackgroundHandler() {
-        if (mBackgroundHandler == null) {
-            HandlerThread thread = new HandlerThread("background");
-            thread.start();
-            mBackgroundHandler = new Handler(thread.getLooper());
-        }
-        return mBackgroundHandler;
-    }
-
-
     private String createFilePath(String filename) {
         return getApplication().getFilesDir().getAbsolutePath() + "/" + filename;
     }
 
 }
+
+
+
