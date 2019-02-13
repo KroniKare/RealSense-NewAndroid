@@ -1,6 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        config {
+            keyAlias 'key0'
+            keyPassword 'RealSense'
+            storeFile file('/home/kronikare/KroniKare/Keys/RealSenseAndroid.jks')
+            storePassword 'RealSense'
+        }
+    }
     compileSdkVersion 28
     defaultConfig {
         applicationId "com.intel.realsense.capture"
@@ -11,28 +19,35 @@ android {
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                abiFilters 'arm64-v8a','armeabi-v7a'
+                abiFilters 'arm64-v8a', 'armeabi-v7a'
             }
         }
+        signingConfig signingConfigs.config
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.config
+        }
+        debug {
+            signingConfig signingConfigs.config
         }
     }
-    externalNativeBuild {
-        cmake {
-            path "CMakeLists.txt"
-        }
-    }
-
-    sourceSets {
-        main {
-            jni.srcDirs = ['src/main/cpp']
-            jniLibs.srcDirs = ['/home/kronikare/KroniKare/OpenCV-android-sdk/sdk/native/libs']
-        }
-
+//    externalNativeBuild {
+//        cmake {
+//            path "CMakeLists.txt"
+//        }
+//    }
+//
+//    sourceSets {
+//        main {
+//            jni.srcDirs = ['src/main/cpp']
+//            jniLibs.srcDirs = ['/home/kronikare/KroniKare/OpenCV-android-sdk/sdk/native/libs']
+//        }
+//
+//    }
+    productFlavors {
     }
 }
 
@@ -43,6 +58,6 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
-    implementation project(':openCVLibrary341')
+    //    implementation project(':openCVLibrary341')
     implementation project(':librealsense')
 }

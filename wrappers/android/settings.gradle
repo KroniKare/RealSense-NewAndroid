@@ -15,4 +15,4 @@ project(':playback').projectDir = new File('examples/playback')
 
 include ':recording'
 project(':recording').projectDir = new File('examples/recording')
-include ':openCVLibrary341'
+//include ':openCVLibrary341'

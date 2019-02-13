@@ -8,9 +8,9 @@ import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.LinearLayoutCompat;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.intel.realsense.librealsense.AdvancedMode;
@@ -37,15 +37,12 @@ import static com.intel.realsense.capture.SavingFrameData.saveDepthBytes;
 import static com.intel.realsense.capture.SavingFrameData.saveIntrinsicParameters;
 import static com.intel.realsense.capture.SavingFrameData.saveVideoFrame;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivityWithImageView extends AppCompatActivity {
     private static final String TAG = "lrs capture example";
     private static final int PERMISSIONS_REQUEST_CAMERA = 0;
 
     private boolean mPermissionsGrunted = false;
-    private android.content.Context mContext = this;
-    private LinearLayoutCompat mButtonPanel;
-    Handler mBackgroundHandler;
-    Handler mCaptureHandler;
+    private Context mContext = this;
     private Boolean isCaptureDepth = false;
     private boolean isCaptureVideo = false;
     private Boolean isCaptureVideoRB = false;
@@ -65,23 +62,20 @@ public class MainActivity extends AppCompatActivity {
     private AdvancedMode mAdvancedMode;
     private AdvancedMode.DepthTableControl mDepthTableControl;
 
+    private FrameViewer mColorFrameViewer;
+
     private Alignment mAlignment = new Alignment();
     private RemoveBackground mRemoveBackground;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_main_imageview);
 
         mAppContext = getApplicationContext();
         mBackGroundText = findViewById(R.id.connectCameraText);
-        mGLSurfaceView = findViewById(R.id.glSurfaceView);
-        mGLSurfaceView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE
-                | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+
+        mColorFrameViewer = new FrameViewer((ImageView) findViewById(R.id.iv_video_frame));
 
         // Android 9 also requires camera permissions
         if (android.os.Build.VERSION.SDK_INT > android.os.Build.VERSION_CODES.O &&
@@ -174,28 +168,28 @@ public class MainActivity extends AppCompatActivity {
 
                         if (isCaptureVideo) {
                             try (Frame f = processed_.first(StreamType.COLOR)) {
-                                saveVideoFrame(MainActivity.this,
+                                saveVideoFrame(MainActivityWithImageView.this,
                                         f.as(VideoFrame.class),
                                         "color_image_" + mFormatedDate + ".png");
                             }
                             try (Frame f = processed_.first(StreamType.DEPTH)) {
                                 String fileName = "depth_byte_" + mFormatedDate + ".txt";
-                                saveDepthBytes(MainActivity.this,
+                                saveDepthBytes(MainActivityWithImageView.this,
                                         f.as(VideoFrame.class), fileName);
                                 VideoStreamProfile videoStreamProfile =
                                         ((VideoStreamProfile) f.getProfile());
-                                saveIntrinsicParameters(MainActivity.this,
+                                saveIntrinsicParameters(MainActivityWithImageView.this,
                                         videoStreamProfile.getmIntrinsicParameters(), fileName);
 
                             }
                             isCaptureVideo = false;
                         }
-
                         try (FrameSet processed = processed_.applyFilter(mRemoveBackground)) {
-                            mGLSurfaceView.upload(processed);
                             try (Frame f = processed.first(StreamType.COLOR)) {
+                                mColorFrameViewer.show(MainActivityWithImageView.this,
+                                        f.as(VideoFrame.class));
                                 if (isCaptureVideoRB) {
-                                    saveVideoFrame(MainActivity.this, f.as(VideoFrame.class),
+                                    saveVideoFrame(MainActivityWithImageView.this, f.as(VideoFrame.class),
                                             "color_image_rb.png");
                                     isCaptureVideoRB = false;
                                 }
@@ -230,8 +224,6 @@ public class MainActivity extends AppCompatActivity {
             mDepthTableControl = mAdvancedMode.getmDepthTableControl();
             mRemoveBackground = new RemoveBackground(65, 1000);
 
-
-            mGLSurfaceView.clear();
             mPipeline.start(mConfig);
             mIsStreaming = true;
             mHandler.post(mStreaming);
