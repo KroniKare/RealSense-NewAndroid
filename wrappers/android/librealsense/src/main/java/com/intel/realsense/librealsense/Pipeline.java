@@ -4,7 +4,7 @@ package com.intel.realsense.librealsense;
 import android.util.Log;
 
 public class Pipeline extends LrsClass{
-    long mPipelineProfileHandle;
+    PipelineProfile mPipelineProfile;
     public Pipeline(){
         RsContext ctx = new RsContext();
         mHandle = nCreate(ctx.getHandle());
@@ -14,13 +14,13 @@ public class Pipeline extends LrsClass{
     }
 
     public void start() throws Exception{
-        PipelineProfile rv =  new PipelineProfile(nStart(mHandle));
-        rv.close();//TODO: enable when PipelineProfile is implemented
+        mPipelineProfile =  new PipelineProfile(nStart(mHandle));
+        mPipelineProfile.close();//TODO: enable when PipelineProfile is implemented
     }
 
     public void start(Config config) throws Exception {
-        PipelineProfile rv = new PipelineProfile(nStartWithConfig(mHandle, config.getHandle()));
-        rv.close();//TODO: enable when PipelineProfile is implemented
+        mPipelineProfile = new PipelineProfile(nStartWithConfig(mHandle, config.getHandle()));
+        mPipelineProfile.close();//TODO: enable when PipelineProfile is implemented
     }
     public void stop() {
         nStop(mHandle);
@@ -38,6 +38,10 @@ public class Pipeline extends LrsClass{
     @Override
     public void close(){
         nDelete(mHandle);
+    }
+
+    public PipelineProfile getmPipelineProfile() {
+        return mPipelineProfile;
     }
 
     private static native long nCreate(long context);

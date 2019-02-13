@@ -3,10 +3,8 @@ package com.intel.realsense.capture;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -15,7 +13,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import com.intel.realsense.librealsense.Colorizer;
 import com.intel.realsense.librealsense.AdvancedMode;
 import com.intel.realsense.librealsense.Alignment;
 import com.intel.realsense.librealsense.Config;
@@ -25,7 +22,6 @@ import com.intel.realsense.librealsense.Frame;
 import com.intel.realsense.librealsense.FrameSet;
 import com.intel.realsense.librealsense.GLRsSurfaceView;
 import com.intel.realsense.librealsense.Pipeline;
-import com.intel.realsense.librealsense.RsContext;
 import com.intel.realsense.librealsense.RemoveBackground;
 import com.intel.realsense.librealsense.RsContext;
 import com.intel.realsense.librealsense.StreamFormat;
@@ -33,7 +29,6 @@ import com.intel.realsense.librealsense.StreamType;
 import com.intel.realsense.librealsense.VideoFrame;
 import com.intel.realsense.librealsense.VideoStreamProfile;
 
-import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -53,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
     Handler mCaptureHandler;
     private Boolean isCaptureDepth = false;
     private boolean isCaptureVideo = false;
-    private Boolean isCaptureVideRB = false;
+    private Boolean isCaptureVideoRB = false;
     String mFormatedDate;
 
 
@@ -65,7 +60,6 @@ public class MainActivity extends AppCompatActivity {
 
     private Pipeline mPipeline;
     private Config mConfig;
-    private Colorizer mColorizer;
     private RsContext mRsContext;
     private Device mDevice;
     private AdvancedMode mAdvancedMode;
@@ -73,7 +67,6 @@ public class MainActivity extends AppCompatActivity {
 
     private Alignment mAlignment = new Alignment();
     private RemoveBackground mRemoveBackground;
-    RSMeasurement rsMeasurement = new RSMeasurement();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,11 +77,11 @@ public class MainActivity extends AppCompatActivity {
         mBackGroundText = findViewById(R.id.connectCameraText);
         mGLSurfaceView = findViewById(R.id.glSurfaceView);
         mGLSurfaceView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE
-            | View.SYSTEM_UI_FLAG_FULLSCREEN
-            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
 
         // Android 9 also requires camera permissions
         if (android.os.Build.VERSION.SDK_INT > android.os.Build.VERSION_CODES.O &&
@@ -112,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if(mPermissionsGrunted)
+        if (mPermissionsGrunted)
             init();
         else
             Log.e(TAG, "missing permissions");
@@ -125,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
         stop();
     }
 
-    private void init(){
+    private void init() {
         //RsContext.init must be called once in the application lifetime before any interaction with physical RealSense devices.
         //For multi activities applications use the application context instead of the activity context
         RsContext.init(mAppContext);
@@ -133,37 +126,23 @@ public class MainActivity extends AppCompatActivity {
         //Register to notifications regarding RealSense devices attach/detach events via the DeviceListener.
         mRsContext = new RsContext();
 
-        RsContext rsContext = new RsContext();
-
-        mDevice = new Device(rsContext);
-        mAdvancedMode = new AdvancedMode(mDevice);
-        mDepthTableControl = mAdvancedMode.getmDepthTableControl();
-        Log.i(TAG, "onDeviceAttach: depthUnits: " + mDepthTableControl.depthUnits);
-        mDepthTableControl.disparityShift = 60;
-        mAdvancedMode.setmDepthTableControl(mDepthTableControl);
-
-        mDepthTableControl = mAdvancedMode.getmDepthTableControl();
-        mRemoveBackground = new RemoveBackground(40, mDepthTableControl.depthUnits);
-
-        mPipeline = new Pipeline(rsContext);
-
+        mPipeline = new Pipeline(mRsContext);
         mRsContext.setDevicesChangedCallback(mListener);
 
-        mPipeline = new Pipeline();
-        mConfig  = new Config();
-        mColorizer = new Colorizer();
+        mConfig = new Config();
 
-        mConfig.enableStream(StreamType.DEPTH, 640, 480);
-        mConfig.enableStream(StreamType.COLOR, 640, 480);
-//        mConfig.enableStream(StreamType.DEPTH, -1, 640, 480, StreamFormat.Z16, 30);
-//        mConfig.enableStream(StreamType.COLOR, -1, 640, 480, StreamFormat.RGBA8, 30);
-        if(mRsContext.getDeviceCount() > 0) {
+//        mConfig.enableStream(StreamType.DEPTH, 640, 480);
+//        mConfig.enableStream(StreamType.COLOR, 640, 480);
+        mConfig.enableStream(StreamType.DEPTH, -1, 640, 480, StreamFormat.Z16, 30);
+        mConfig.enableStream(StreamType.COLOR, -1, 640, 480, StreamFormat.RGBA8, 30);
+
+        if (mRsContext.getDeviceCount() > 0) {
             showConnectLabel(false);
             start();
         }
     }
 
-    private void showConnectLabel(final boolean state){
+    private void showConnectLabel(final boolean state) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -189,8 +168,9 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             try {
-                try(FrameSet frames = mPipeline.waitForFrames(1000)) {
+                try (FrameSet frames = mPipeline.waitForFrames(1000)) {
                     try (FrameSet processed_ = frames.applyFilter(mAlignment)) {
+
                         if (isCaptureVideo) {
                             try (Frame f = processed_.first(StreamType.COLOR)) {
                                 saveVideoFrame(MainActivity.this,
@@ -209,47 +189,47 @@ public class MainActivity extends AppCompatActivity {
                             }
                             isCaptureVideo = false;
                         }
-
-
-                    }
-                    try(FrameSet processed = frames.applyFilter(mColorizer)) {
-                        mGLSurfaceView.upload(processed);
-                        try (Frame f = processed.first(StreamType.COLOR)) {
-                            mColorFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
-                            if (isCaptureVideRB) {
-                                saveVideoFrame(MainActivity.this, f.as(VideoFrame.class),
-                                        "color_image_rb.png");
-                                isCaptureVideRB = false;
+                        mGLSurfaceView.upload(processed_);
+                        try (FrameSet processed = processed_.applyFilter(mRemoveBackground)) {
+                            mGLSurfaceView.upload(processed);
+                            try (Frame f = processed.first(StreamType.COLOR)) {
+                                if (isCaptureVideoRB) {
+                                    saveVideoFrame(MainActivity.this, f.as(VideoFrame.class),
+                                            "color_image_rb.png");
+                                    isCaptureVideoRB = false;
+                                }
                             }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Remove Background ::" + e.getMessage());
                         }
-                        try (Frame f = processed.first(StreamType.DEPTH)) {
-                            mDepthFrameViewer.show(MainActivity.this, f.as(VideoFrame.class));
-                        }
-
-
+                    } catch (Exception e) {
+                        Log.e(TAG, "Alignment ::" + e.getMessage());
                     }
+                } catch (Exception e) {
+                    Log.e(TAG, "Wait for Frames :: " + e.getMessage());
                 }
                 mHandler.post(mStreaming);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 Log.e(TAG, "streaming, error: " + e.getMessage());
             }
         }
     };
-//} catch (Exception e) {
-//        Log.e(TAG, "Remove Background ::" + e.getMessage());
-//        }
-//        } catch (Exception e) {
-//        Log.e(TAG, "Alignment ::" + e.getMessage());
-//        }
-//        } catch (Exception e) {
-//        Log.e(TAG, "Wait for Frames :: " + e.getMessage());
-//        }
+
     private synchronized void start() {
-        if(mIsStreaming)
+        if (mIsStreaming)
             return;
-        try{
+        try {
             Log.d(TAG, "try start streaming");
+            mDevice = new Device(mRsContext);
+            mAdvancedMode = new AdvancedMode(mDevice);
+            mDepthTableControl = mAdvancedMode.getmDepthTableControl();
+            Log.i(TAG, "onDeviceAttach: depthUnits: " + mDepthTableControl.depthUnits);
+            mDepthTableControl.disparityShift = 60;
+            mAdvancedMode.setmDepthTableControl(mDepthTableControl);
+            mDepthTableControl = mAdvancedMode.getmDepthTableControl();
+            mRemoveBackground = new RemoveBackground(65, 1000);
+
+
             mGLSurfaceView.clear();
             mPipeline.start(mConfig);
             mIsStreaming = true;
@@ -261,7 +241,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private synchronized void stop() {
-        if(!mIsStreaming)
+        if (!mIsStreaming)
             return;
         try {
             Log.d(TAG, "try stop streaming");
@@ -269,7 +249,7 @@ public class MainActivity extends AppCompatActivity {
             mHandler.removeCallbacks(mStreaming);
             mPipeline.stop();
             Log.d(TAG, "streaming stopped successfully");
-        }  catch (Exception e) {
+        } catch (Exception e) {
             Log.d(TAG, "failed to stop streaming");
             mPipeline = null;
         }
@@ -277,16 +257,9 @@ public class MainActivity extends AppCompatActivity {
 
 
     public void captureFrames(View view) {
-//        getBackgroundHandler().post(new Runnable() {
-//            @Override
-//            public void run() {
-//                nSaveDepthColor(mBackgroundRemover.getDepthFrame().as(VideoFrame.class).getHandle(),
-//                        mBackgroundRemover.getColorFrame().as(VideoFrame.class).getHandle(),getApplication().getFilesDir().getAbsolutePath()+"/"+"depthFrame.xml");
-//            }
-//        });
         isCaptureDepth = true;
         isCaptureVideo = true;
-        isCaptureVideRB = true;
+        isCaptureVideoRB = true;
         SimpleDateFormat sdf = new SimpleDateFormat(
                 "yyyy-MM-dd-HH-mm-ssZ", Locale.getDefault());
         mFormatedDate = sdf.format(new Date());

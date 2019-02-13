@@ -4,7 +4,7 @@ public class Device extends LrsClass {
 
 
     public Device(Pipeline pipeline){
-        mHandle = nCreate(pipeline.getmPipelineProfileHandle());
+        mHandle = nCreate(pipeline.getmPipelineProfile().getHandle());
     }
 
     public Device(RsContext rsContext){
